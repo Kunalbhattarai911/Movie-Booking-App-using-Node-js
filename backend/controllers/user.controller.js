@@ -171,3 +171,51 @@ export const deleteUser = async (req, res) => {
     });
   }
 };
+
+export const updateAdminStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { statusOfAdmin } = req.body; // 'Approved' or 'Rejected'
+
+    // Ensure only SuperAdmin can perform this action
+    const superAdmin = req.user; // Assuming you're using middleware to authenticate the logged-in user
+    if (superAdmin.role !== "SuperAdmin") {
+      return res.status(403).json({
+        message: "You do not have permission to approve or reject admins",
+        success: false,
+      });
+    }
+
+    // Validate statusOfAdmin
+    if (!["Approved", "Rejected"].includes(statusOfAdmin)) {
+      return res.status(400).json({
+        message: "Invalid status. Choose 'Approved' or 'Rejected'.",
+        success: false,
+      });
+    }
+
+    const adminUser = await User.findById(id);
+
+    if (!adminUser || adminUser.role !== "Admin") {
+      return res.status(404).json({
+        message: "Admin not found",
+        success: false,
+      });
+    }
+
+    adminUser.statusOfAdmin = statusOfAdmin;
+    await adminUser.save();
+
+    return res.status(200).json({
+      message: `Admin status updated to ${statusOfAdmin}`,
+      success: true,
+    });
+  } catch (error) {
+    console.log("Error updating admin status", error);
+    return res.status(500).json({
+      message: "An error occurred while updating admin status",
+      success: false,
+      error: error.message,
+    });
+  }
+};

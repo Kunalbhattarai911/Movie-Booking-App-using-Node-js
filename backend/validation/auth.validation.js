@@ -24,3 +24,20 @@ export const signupValidation = (req,res,next) => {
     }
     next();
 }
+
+export const signinValidation = (req,res,next) => {
+    const schema = Joi.object({
+        email:Joi.string().email().required(),
+        password:Joi.string().min(8).required(),
+    })
+
+    const {error} = schema.validate(req.body) 
+    if(error) {
+        return res.status(500).json({
+            message : "Bad Request",
+            Error : error.details[0].message,
+            success : false
+        })
+    }
+    next();
+}

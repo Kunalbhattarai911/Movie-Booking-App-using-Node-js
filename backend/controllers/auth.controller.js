@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import User from "../models/user.model.js";
+import jwt from 'jsonwebtoken';
 
 export const signup = async (req, res) => {
   try {
@@ -78,3 +79,58 @@ export const signup = async (req, res) => {
   }
 };
 
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Check if the user exists
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({
+        message: "Invalid Email or Password",
+        success: false,
+      });
+    }
+
+    // Check if the user is an admin and whether the admin is approved
+    if (user.role === "Admin" && user.statusOfAdmin !== "Approved") {
+      return res.status(403).json({
+        message: `Your admin status is ${user.statusOfAdmin}. You cannot log in until approved by a SuperAdmin.`,
+        success: false,
+      });
+    }
+
+    // Check the password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({
+        message: "Invalid Email or Password",
+        success: false,
+      });
+    }
+
+    // Generate a JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role }, // Payload
+      process.env.JWT_SECRET, // Secret key
+      { expiresIn: '1h' } // Token expiration (optional)
+    );
+
+    const { password: pass, ...rest } = user.toObject();
+    
+    // Return token along with user info
+    return res.status(200).json({
+      message: "Login Successful",
+      success: true,
+      token, // Send the token back to the client
+      user: rest, // Other user info excluding password
+    });
+  } catch (error) {
+    console.log("Error during login", error);
+    return res.status(500).json({
+      message: "An error occurred during login",
+      success: false,
+      error: error.message,
+    });
+  }
+};
